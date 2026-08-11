@@ -314,8 +314,12 @@ function disableVoiceDueToError() {
   if (hint) hint.textContent = 'Microphone unavailable — using taps only';
 }
 
-const HOLED_WORDS = ['holed', 'hold', "it's in", 'its in', 'made it', 'make', 'good', 'sunk', 'bottom', 'in the hole', 'in'];
+const HOLED_WORDS = ['holed', 'hole', 'hold', 'made', "it's in", 'its in', 'good', 'sunk', 'bottom', 'in the hole'];
 const MISS_WORDS = ['miss', 'missed', 'again', 'no make', 'lip out'];
+const MISS_DIRECTION_GRACE_MS = 4000;
+
+let awaitingDirection = false;
+let awaitingDirectionTimer = null;
 
 function matchDirection(text) {
   const compounds = [
@@ -332,12 +336,49 @@ function matchDirection(text) {
   return null;
 }
 
+function clearAwaitingDirection() {
+  awaitingDirection = false;
+  clearTimeout(awaitingDirectionTimer);
+}
+
+function updateLastMissDirection(dirKey) {
+  const st = Round.stations[Round.stations.length - 1];
+  if (st && !st.made) st.missDirection = dirKey;
+}
+
 function handleVoiceText(text) {
   if (!Round.active) return;
+
+  // Natural speech often comes as two separate utterances: "miss" ... then,
+  // after a beat, "left". If we already logged a bare miss and are waiting
+  // to hear which way it went, a direction word here belongs to THAT putt,
+  // not whatever comes next.
+  if (awaitingDirection) {
+    const dirKey = matchDirection(text);
+    if (dirKey) {
+      clearAwaitingDirection();
+      updateLastMissDirection(dirKey);
+      return;
+    }
+    if (MISS_WORDS.some(w => text.includes(w))) {
+      clearTimeout(awaitingDirectionTimer);
+      awaitingDirectionTimer = setTimeout(clearAwaitingDirection, MISS_DIRECTION_GRACE_MS);
+      return;
+    }
+    if (HOLED_WORDS.some(w => text.includes(w))) { clearAwaitingDirection(); }
+    // otherwise ignore stray words while we're still listening for a direction
+  }
+
   if (HOLED_WORDS.some(w => text.includes(w))) { finalizeStation(true, null); return; }
   const dirKey = matchDirection(text);
   if (dirKey) { finalizeStation(false, dirKey); return; }
-  if (MISS_WORDS.some(w => text.includes(w))) { finalizeStation(false, 'unspecified'); return; }
+  if (MISS_WORDS.some(w => text.includes(w))) {
+    finalizeStation(false, 'unspecified');
+    awaitingDirection = true;
+    clearTimeout(awaitingDirectionTimer);
+    awaitingDirectionTimer = setTimeout(clearAwaitingDirection, MISS_DIRECTION_GRACE_MS);
+    return;
+  }
 }
 
 /* =========================================================================
@@ -940,6 +981,7 @@ function initHome() {
 
 function startRound() {
   Sound.ensure();
+  clearAwaitingDirection();
   Round.start(DB.profile.settings.puttCount);
   showScreen('screen-round');
   renderStation();
@@ -966,6 +1008,7 @@ function finalizeStation(made, missDirectionKey) {
 }
 
 function endRound() {
+  clearAwaitingDirection();
   Voice.stop();
   const session = Round.finish();
   Sound.finish();
@@ -978,6 +1021,7 @@ function initRound() {
   $('btn-made').addEventListener('click', () => finalizeStation(true, null));
   $('btn-quit').addEventListener('click', () => {
     if (confirm('Quit this round? Progress will not be saved.')) {
+      clearAwaitingDirection();
       Voice.stop();
       Round.active = false;
       showScreen('screen-home');
