@@ -148,6 +148,31 @@ function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
 function toMeters(ft) { return ft * 0.3048; }
 function formatDistance(ft, units) { return units === 'm' ? Math.max(1, Math.round(toMeters(ft))) : Math.round(ft); }
 
+const EXACT_DISTANCE_CUTOFF_FT = 15;
+const DISTANCE_BUCKET_FT = 5;
+
+// Beyond 15ft we show a 5ft range instead of an exact number — long lag
+// putts are about speed/proportion, not memorizing a precise yardage.
+function distanceBucket(ft) {
+  const lower = Math.floor(ft / DISTANCE_BUCKET_FT) * DISTANCE_BUCKET_FT;
+  return { lower, upper: lower + DISTANCE_BUCKET_FT };
+}
+
+function formatDistanceDisplay(ft, units) {
+  if (ft <= EXACT_DISTANCE_CUTOFF_FT) {
+    return { text: String(formatDistance(ft, units)), isRange: false };
+  }
+  const { lower, upper } = distanceBucket(ft);
+  return { text: `${formatDistance(lower, units)}-${formatDistance(upper, units)}`, isRange: true };
+}
+
+function formatDistanceSpeech(ft, units) {
+  const unitWord = units === 'm' ? 'meters' : 'feet';
+  if (ft <= EXACT_DISTANCE_CUTOFF_FT) return `${formatDistance(ft, units)} ${unitWord}`;
+  const { lower, upper } = distanceBucket(ft);
+  return `${formatDistance(lower, units)} to ${formatDistance(upper, units)} ${unitWord}`;
+}
+
 /* =========================================================================
    STATION GENERATION
    ========================================================================= */
@@ -706,7 +731,9 @@ function renderStation() {
   const units = DB.profile.settings.units;
   $('category-badge').textContent = CATEGORY_LABEL[st.category];
   $('category-badge').className = 'category-badge ' + st.category;
-  $('distance-num').textContent = formatDistance(st.distanceFt, units);
+  const disp = formatDistanceDisplay(st.distanceFt, units);
+  $('distance-num').textContent = disp.text;
+  $('distance-display').classList.toggle('is-range', disp.isRange);
   $('distance-unit').textContent = units === 'm' ? 'm' : 'ft';
   $('break-desc').textContent = st.breakDesc;
 
@@ -730,9 +757,8 @@ function renderStation() {
 function announceStation() {
   const st = Round.current;
   const units = DB.profile.settings.units;
-  const d = formatDistance(st.distanceFt, units);
-  const unitWord = units === 'm' ? 'meters' : 'feet';
-  Voice.speak(`Station ${Round.stations.length + 1}. ${d} ${unitWord}. ${st.breakDesc}.`);
+  const distancePhrase = formatDistanceSpeech(st.distanceFt, units);
+  Voice.speak(`Station ${Round.stations.length + 1}. ${distancePhrase}. ${st.breakDesc}.`);
 }
 
 function showResultToast(station) {

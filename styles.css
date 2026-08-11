@@ -220,7 +220,8 @@ input[type=range]::-webkit-slider-thumb{
 .category-badge.lag{ background: rgba(255,154,92,0.15); color: var(--orange); border-color: rgba(255,154,92,0.3); }
 
 .distance-display{ font-size:76px; font-weight:900; line-height:1; letter-spacing:-0.03em; margin-top:4px;
-  text-shadow: 0 0 40px rgba(47,214,107,0.25); }
+  text-shadow: 0 0 40px rgba(47,214,107,0.25); transition: font-size .15s ease; }
+.distance-display.is-range{ font-size:52px; }
 .distance-unit{ font-size:26px; font-weight:700; color: var(--text-1); margin-left:6px; }
 .break-desc{ font-size:15px; color: var(--text-1); font-weight:600; min-height:20px; }
 
@@ -356,5 +357,6 @@ input[type=range]::-webkit-slider-thumb{
 }
 
 @media (max-width:360px){
-  .distance-display{ font-size:78px; }
+  .distance-display{ font-size:62px; }
+  .distance-display.is-range{ font-size:44px; }
 }
