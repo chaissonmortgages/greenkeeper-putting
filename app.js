@@ -60,7 +60,7 @@ const STORAGE_KEY = 'greenkeeper_v1';
    STORAGE
    ========================================================================= */
 
-function emptyCat() { return { count: 0, makes: 0, makePct: 0, sg: 0 }; }
+function emptyCat() { return { count: 0, makes: 0, makePct: 0, sg: 0, tapIns: 0 }; }
 function emptyLifetimeCat() { return { attempts: 0, makes: 0 }; }
 function emptyMissDir() {
   const o = {};
@@ -340,6 +340,7 @@ function disableVoiceDueToError() {
 }
 
 const HOLED_WORDS = ['holed', 'hole', 'hold', 'made', "it's in", 'its in', 'good', 'sunk', 'bottom', 'in the hole'];
+const TAPIN_WORDS = ['tap in', 'tap-in', 'tapin', 'gimme', 'gimmie'];
 const MISS_WORDS = ['miss', 'missed', 'again', 'no make', 'lip out'];
 const MISS_DIRECTION_GRACE_MS = 4000;
 
@@ -368,7 +369,7 @@ function clearAwaitingDirection() {
 
 function updateLastMissDirection(dirKey) {
   const st = Round.stations[Round.stations.length - 1];
-  if (st && !st.made) st.missDirection = dirKey;
+  if (st && !st.made && !st.tapIn) st.missDirection = dirKey;
 }
 
 function handleVoiceText(text) {
@@ -390,15 +391,16 @@ function handleVoiceText(text) {
       awaitingDirectionTimer = setTimeout(clearAwaitingDirection, MISS_DIRECTION_GRACE_MS);
       return;
     }
-    if (HOLED_WORDS.some(w => text.includes(w))) { clearAwaitingDirection(); }
+    if (HOLED_WORDS.some(w => text.includes(w)) || TAPIN_WORDS.some(w => text.includes(w))) { clearAwaitingDirection(); }
     // otherwise ignore stray words while we're still listening for a direction
   }
 
-  if (HOLED_WORDS.some(w => text.includes(w))) { finalizeStation(true, null); return; }
+  if (HOLED_WORDS.some(w => text.includes(w))) { finalizeStation('made', null); return; }
+  if (TAPIN_WORDS.some(w => text.includes(w))) { finalizeStation('tapIn', null); return; }
   const dirKey = matchDirection(text);
-  if (dirKey) { finalizeStation(false, dirKey); return; }
+  if (dirKey) { finalizeStation('miss', dirKey); return; }
   if (MISS_WORDS.some(w => text.includes(w))) {
-    finalizeStation(false, 'unspecified');
+    finalizeStation('miss', 'unspecified');
     awaitingDirection = true;
     clearTimeout(awaitingDirectionTimer);
     awaitingDirectionTimer = setTimeout(clearAwaitingDirection, MISS_DIRECTION_GRACE_MS);
@@ -434,6 +436,7 @@ const Sound = {
     osc.stop(ctx.currentTime + start + dur);
   },
   make() { if (DB.profile.settings.sound) { this.tone(660, 0, 0.12); this.tone(880, 0.1, 0.18); } },
+  tapIn() { if (DB.profile.settings.sound) this.tone(520, 0, 0.16, 0.12); },
   miss() { if (DB.profile.settings.sound) this.tone(220, 0, 0.22, 0.12); },
   finish() {
     if (!DB.profile.settings.sound) return;
@@ -465,18 +468,16 @@ const BADGE_DEFS = {
 
 function evaluateBadges(session) {
   const earned = [];
-  let maxStreak = 0, cur = 0;
   let shortMakes = 0, shortTotal = 0;
   let clutch = false, lagMaster = false;
 
   session.stations.forEach(st => {
-    if (st.made) { cur++; maxStreak = Math.max(maxStreak, cur); } else { cur = 0; }
     if (st.category === 'short') { shortTotal++; if (st.made) shortMakes++; }
     if (st.made && st.distanceFt >= 15) clutch = true;
     if (st.made && st.category === 'lag' && st.distanceFt >= 25) lagMaster = true;
   });
 
-  if (maxStreak >= 5) earned.push('ice_veins');
+  if (session.bestStreak >= 5) earned.push('ice_veins');
   if (clutch) earned.push('clutch');
   if (lagMaster) earned.push('lag_master');
   if (shortTotal >= 3 && shortMakes === shortTotal) earned.push('sniper');
@@ -516,26 +517,34 @@ const Round = {
 
   nextStation() { this.current = generateStation(this.weights); },
 
-  recordResult(made, missDirectionKey) {
+  // outcome: 'made' (holed it, 1 putt) | 'tapIn' (missed but left tap-in
+  // close, effectively 2 putts, no direction worth logging) | 'miss' (a
+  // real miss that needs a direction for the weakness diagnostics).
+  recordResult(outcome, missDirectionKey) {
     const st = this.current;
+    const made = outcome === 'made';
+    const tapIn = outcome === 'tapIn';
     const exp = expectedPutts(st.distanceFt);
     const assumedPutts = made ? 1 : 2;
     const sg = exp - assumedPutts;
 
     st.made = made;
-    st.missDirection = made ? null : (missDirectionKey || 'unspecified');
+    st.tapIn = tapIn;
+    st.missDirection = outcome === 'miss' ? (missDirectionKey || 'unspecified') : null;
     st.expected = exp;
     st.sg = sg;
 
     this.runningSG += sg;
 
     if (made) { this.streak++; this.bestStreak = Math.max(this.bestStreak, this.streak); }
-    else { this.streak = 0; }
+    else if (outcome === 'miss') { this.streak = 0; }
+    // tapIn: a good, close putt — doesn't break the streak, doesn't add to it either.
 
     const streakMult = 1 + Math.min(this.streak > 0 ? this.streak - 1 : 0, 10) * 0.05;
     const catMult = CATEGORY_MULT[st.category];
     let basePts = Math.max(sg, 0) * 50;
     if (made) basePts += 15 + st.distanceFt * 0.8;
+    else if (tapIn) basePts += (15 + st.distanceFt * 0.8) * 0.4;
     st.points = Math.round(basePts * catMult * streakMult);
     this.points += st.points;
 
@@ -553,9 +562,9 @@ const Round = {
 
     this.stations.forEach(st => {
       const b = breakdown[st.category];
-      b.count++; b.sg += st.sg; if (st.made) b.makes++;
+      b.count++; b.sg += st.sg; if (st.made) b.makes++; if (st.tapIn) b.tapIns++;
       distSum[st.category] += st.distanceFt;
-      if (!st.made) missDir[st.missDirection] = (missDir[st.missDirection] || 0) + 1;
+      if (st.missDirection) missDir[st.missDirection] = (missDir[st.missDirection] || 0) + 1;
     });
 
     let weakestCategory = null, weakestDiff = 0;
@@ -577,7 +586,7 @@ const Round = {
       bestStreak: this.bestStreak,
       makePct: Math.round(100 * this.stations.filter(s => s.made).length / this.stations.length),
       stations: this.stations.map(s => ({
-        category: s.category, distanceFt: s.distanceFt, made: s.made,
+        category: s.category, distanceFt: s.distanceFt, made: s.made, tapIn: s.tapIn,
         missDirection: s.missDirection, sg: s.sg, breakDesc: s.breakDesc
       })),
       breakdown, missDir, weakestCategory, usingAdaptive: this.usingAdaptive
@@ -640,9 +649,34 @@ function heatColor(t) {
 function buildCompassSVG(svgEl, opts) {
   const NS = 'http://www.w3.org/2000/svg';
   svgEl.innerHTML = '';
-  const cx = 130, cy = 130, rOuter = 118, rInner = 40;
+  const cx = 130, cy = 130, rOuter = 118;
+  const rInner = opts.innerRadius || 40;
   const anglePer = 360 / MISS_DIRECTIONS.length;
   const maxCount = opts.counts ? Math.max(1, ...Object.values(opts.counts)) : 1;
+
+  if (opts.tapIn) {
+    const tapInInner = opts.tapIn.innerRadius;
+    const tapInOuter = rInner;
+    const ring = document.createElementNS(NS, 'circle');
+    ring.setAttribute('cx', cx);
+    ring.setAttribute('cy', cy);
+    ring.setAttribute('r', (tapInInner + tapInOuter) / 2);
+    ring.setAttribute('class', 'compass-tapin-ring');
+    ring.setAttribute('stroke-width', tapInOuter - tapInInner);
+    ring.addEventListener('click', () => opts.tapIn.onSelect());
+    svgEl.appendChild(ring);
+
+    [0, 180].forEach(angle => {
+      const [lx, ly] = polarToXY(cx, cy, (tapInInner + tapInOuter) / 2, angle);
+      const text = document.createElementNS(NS, 'text');
+      text.setAttribute('x', lx); text.setAttribute('y', ly);
+      text.setAttribute('text-anchor', 'middle');
+      text.setAttribute('dominant-baseline', 'middle');
+      text.setAttribute('class', 'compass-tapin-label');
+      text.textContent = 'TAP IN';
+      svgEl.appendChild(text);
+    });
+  }
 
   MISS_DIRECTIONS.forEach((dir, i) => {
     const centerAngle = i * anglePer;
@@ -751,7 +785,7 @@ function renderStation() {
   const voiceHint = $('voice-hint');
   if (!Voice.supported) { voiceHint.textContent = 'Voice not supported in this browser — use the buttons'; }
   else if (!DB.profile.settings.voice) { voiceHint.textContent = ''; }
-  else { voiceHint.textContent = 'Say "made" or a miss direction'; }
+  else { voiceHint.textContent = 'Say "made", "tap in", or a miss direction'; }
 }
 
 function announceStation() {
@@ -771,6 +805,12 @@ function showResultToast(station) {
     $('result-sg').textContent = fmtSG(station.sg);
     $('result-sg').className = 'result-sg pos';
     $('result-sub').textContent = 'strokes gained';
+  } else if (station.tapIn) {
+    toast.classList.add('tapin');
+    $('result-icon').textContent = '◎';
+    $('result-sg').textContent = fmtSG(station.sg);
+    $('result-sg').className = 'result-sg ' + (station.sg >= 0 ? 'pos' : 'neg');
+    $('result-sub').textContent = 'tap-in';
   } else {
     toast.classList.add('miss');
     $('result-icon').textContent = '✕';
@@ -794,6 +834,7 @@ function renderBreakdownGrid(container, breakdown) {
       <div class="bd-label" style="color:var(--${color})">${CATEGORY_LABEL[cat]}</div>
       <div class="bd-make">${b.count ? b.makePct + '%' : '—'}</div>
       <div class="bd-sub">${b.count ? `${b.count} · vs ${b.benchMakePct}% avg` : 'no attempts'}</div>
+      ${b.tapIns ? `<div class="bd-sub tapin">${b.tapIns} tap-in${b.tapIns > 1 ? 's' : ''}</div>` : ''}
       ${b.count ? `<div class="bd-sub ${b.diff >= 0 ? 'pos' : 'neg'}">${fmtPct(b.diff)}</div>` : ''}
     `;
     container.appendChild(card);
@@ -1015,10 +1056,12 @@ function startRound() {
   if (DB.profile.settings.voice) Voice.start(handleVoiceText);
 }
 
-function finalizeStation(made, missDirectionKey) {
+function finalizeStation(outcome, missDirectionKey) {
   if (!Round.active || !Round.current) return;
-  const station = Round.recordResult(made, missDirectionKey);
-  if (made) Sound.make(); else Sound.miss();
+  const station = Round.recordResult(outcome, missDirectionKey);
+  if (outcome === 'made') Sound.make();
+  else if (outcome === 'tapIn') Sound.tapIn();
+  else Sound.miss();
   showResultToast(station);
   renderStation();
 
@@ -1044,7 +1087,7 @@ function endRound() {
 }
 
 function initRound() {
-  $('btn-made').addEventListener('click', () => finalizeStation(true, null));
+  $('btn-made').addEventListener('click', () => finalizeStation('made', null));
   $('btn-quit').addEventListener('click', () => {
     if (confirm('Quit this round? Progress will not be saved.')) {
       clearAwaitingDirection();
@@ -1055,7 +1098,12 @@ function initRound() {
     }
   });
 
-  buildCompassSVG($('compass-svg'), { interactive: true, onSelect: (key) => finalizeStation(false, key) });
+  buildCompassSVG($('compass-svg'), {
+    interactive: true,
+    innerRadius: 72,
+    onSelect: (key) => finalizeStation('miss', key),
+    tapIn: { innerRadius: 39, onSelect: () => finalizeStation('tapIn', null) }
+  });
 }
 
 function initSummary() {

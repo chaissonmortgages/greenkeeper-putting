@@ -13,6 +13,7 @@
   --purple:#b18bff;
   --orange:#ff9a5c;
   --blue:#5cc8ff;
+  --tapin:#4fd6b0;
   --text-0:#f3fff6;
   --text-1:#aecdbb;
   --text-2:#6f9482;
@@ -247,6 +248,7 @@ input[type=range]::-webkit-slider-thumb{
 .result-icon{ font-size:40px; }
 .result-toast.miss .result-icon{ color: var(--red); }
 .result-toast.holed .result-icon{ color: var(--lime); }
+.result-toast.tapin .result-icon{ color: var(--tapin); }
 .result-sg{ font-size:30px; font-weight:900; margin-top:6px; }
 .result-sub{ font-size:12px; color: var(--text-1); text-transform:uppercase; letter-spacing:.06em; }
 
@@ -269,6 +271,7 @@ input[type=range]::-webkit-slider-thumb{
 .breakdown-card .bd-label{ font-size:11px; text-transform:uppercase; letter-spacing:.04em; font-weight:700; margin-bottom:6px; }
 .breakdown-card .bd-make{ font-size:22px; font-weight:900; }
 .breakdown-card .bd-sub{ font-size:11px; color: var(--text-2); margin-top:2px; }
+.breakdown-card .bd-sub.tapin{ color: var(--tapin); font-weight:700; }
 
 .badges-row{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:18px; }
 .badge-pill{
@@ -323,6 +326,10 @@ input[type=range]::-webkit-slider-thumb{
 .compass-wedge{ cursor:pointer; fill: var(--card-2); stroke: var(--bg-0); stroke-width:2; transition: fill .15s; }
 .compass-wedge:active{ fill: var(--red); }
 .compass-label{ font-size:12px; font-weight:700; fill: var(--text-1); pointer-events:none; }
+
+.compass-tapin-ring{ cursor:pointer; fill:none; stroke: rgba(79,214,176,0.22); transition: stroke .15s; }
+.compass-tapin-ring:active{ stroke: rgba(79,214,176,0.5); }
+.compass-tapin-label{ font-size:11px; font-weight:800; fill: var(--tapin); pointer-events:none; text-transform:uppercase; letter-spacing:.04em; }
 
 .compass-wheel-wrap.round-compass{
   flex: 1; display:flex; align-items:center; justify-content:center;
