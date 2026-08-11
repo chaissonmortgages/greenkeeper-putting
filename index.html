@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0b1f16">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Greenkeeper — Putting Practice</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon.svg">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ============ HOME SCREEN ============ -->
+  <section id="screen-home" class="screen active">
+    <header class="home-header">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="21" stroke="currentColor" stroke-width="3"/><circle cx="24" cy="24" r="3.5" fill="currentColor"/><path d="M24 10v6M24 32v6M10 24h6M32 24h6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+        <h1>Greenkeeper</h1>
+      </div>
+      <button id="btn-settings" class="icon-btn" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z" stroke="currentColor" stroke-width="1.8"/><path d="M19.4 13.5a1.7 1.7 0 00.34 1.87l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.7 1.7 0 00-1.87-.34 1.7 1.7 0 00-1 1.55V20a2 2 0 11-4 0v-.09a1.7 1.7 0 00-1-1.56 1.7 1.7 0 00-1.87.34l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.7 1.7 0 00.34-1.87 1.7 1.7 0 00-1.55-1H4a2 2 0 110-4h.09a1.7 1.7 0 001.56-1 1.7 1.7 0 00-.34-1.87l-.06-.06a2 2 0 112.83-2.83l.06.06a1.7 1.7 0 001.87.34H10a1.7 1.7 0 001-1.55V4a2 2 0 114 0v.09a1.7 1.7 0 001 1.55 1.7 1.7 0 001.87-.34l.06-.06a2 2 0 112.83 2.83l-.06.06a1.7 1.7 0 00-.34 1.87V10a1.7 1.7 0 001.55 1H20a2 2 0 110 4h-.09a1.7 1.7 0 00-1.55 1z" stroke="currentColor" stroke-width="1.8"/></svg>
+      </button>
+    </header>
+
+    <div class="level-card" id="level-card">
+      <div class="level-ring">
+        <svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="28" class="ring-bg"/><circle cx="32" cy="32" r="28" class="ring-fg" id="ring-fg"/></svg>
+        <span id="level-num">1</span>
+      </div>
+      <div class="level-info">
+        <div class="level-title" id="level-title">Green Rookie</div>
+        <div class="level-xp"><span id="xp-current">0</span> / <span id="xp-next">100</span> XP</div>
+      </div>
+      <button id="btn-history" class="ghost-btn">History</button>
+    </div>
+
+    <div class="setup-card">
+      <div class="setup-row">
+        <label for="putt-count">Putts this round</label>
+        <span class="setup-value" id="putt-count-label">18</span>
+      </div>
+      <input type="range" id="putt-count" min="6" max="36" step="1" value="18">
+      <div class="preset-row">
+        <button class="preset-btn" data-putts="9">9</button>
+        <button class="preset-btn active" data-putts="18">18</button>
+        <button class="preset-btn" data-putts="27">27</button>
+        <button class="preset-btn" data-putts="36">36</button>
+      </div>
+
+      <div class="setup-row" style="margin-top:18px">
+        <label>Distance mix</label>
+      </div>
+      <div class="mix-row" id="mix-row">
+        <button class="mix-btn active" data-mix="balanced">Balanced</button>
+        <button class="mix-btn" data-mix="short">Short Game</button>
+        <button class="mix-btn" data-mix="lag">Lag Focus</button>
+      </div>
+
+      <div class="adaptive-box" id="adaptive-box">
+        <div class="adaptive-locked" id="adaptive-locked">
+          Adaptive practice unlocks after <span id="adaptive-unlock-total">5</span> rounds (<span id="adaptive-progress">0</span>/<span id="adaptive-unlock-total-2">5</span> logged)
+        </div>
+        <div class="adaptive-unlocked" id="adaptive-unlocked" style="display:none">
+          <div class="toggle-item">
+            <span>Adaptive practice<br><small>Leans distance mix toward your weak spots</small></span>
+            <label class="switch"><input type="checkbox" id="toggle-adaptive"><span class="slider-toggle"></span></label>
+          </div>
+        </div>
+      </div>
+
+      <div class="toggle-row">
+        <div class="toggle-item">
+          <span>Voice mode</span>
+          <label class="switch"><input type="checkbox" id="toggle-voice" checked><span class="slider-toggle"></span></label>
+        </div>
+        <div class="toggle-item">
+          <span>Sound</span>
+          <label class="switch"><input type="checkbox" id="toggle-sound" checked><span class="slider-toggle"></span></label>
+        </div>
+      </div>
+    </div>
+
+    <button id="btn-start" class="primary-btn">Start Round</button>
+
+    <div class="last-session" id="last-session" style="display:none">
+      <div class="last-session-label">Last round</div>
+      <div class="last-session-body">
+        <span id="last-sg">+0.0</span> strokes gained · <span id="last-putts">0</span> putts · <span id="last-make">0%</span> made
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ROUND SCREEN ============ -->
+  <section id="screen-round" class="screen">
+    <div class="round-topbar">
+      <button id="btn-quit" class="icon-btn" aria-label="Quit round">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="progress-wrap">
+        <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+        <div class="progress-label"><span id="station-num">1</span> / <span id="station-total">18</span></div>
+      </div>
+      <div class="mic-indicator" id="mic-indicator" title="Voice listening">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M12 15a3 3 0 003-3V6a3 3 0 10-6 0v6a3 3 0 003 3z" stroke="currentColor" stroke-width="1.8"/><path d="M19 11a7 7 0 01-14 0M12 18v3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      </div>
+    </div>
+
+    <div class="score-strip">
+      <div class="score-item">
+        <div class="score-value" id="running-sg">+0.00</div>
+        <div class="score-label">strokes gained</div>
+      </div>
+      <div class="score-item">
+        <div class="score-value" id="streak-val">0<span class="streak-fire">🔥</span></div>
+        <div class="score-label">streak</div>
+      </div>
+      <div class="score-item">
+        <div class="score-value" id="points-val">0</div>
+        <div class="score-label">points</div>
+      </div>
+    </div>
+
+    <div class="adaptive-banner" id="round-adaptive-banner" style="display:none">Adaptive practice — leaning into your weak spots</div>
+
+    <div class="station-stage" id="station-stage">
+      <div class="category-badge" id="category-badge">Short</div>
+      <div class="distance-display">
+        <span id="distance-num">6</span><span id="distance-unit" class="distance-unit">ft</span>
+      </div>
+      <div class="break-desc" id="break-desc">Straight putt</div>
+    </div>
+
+    <div class="compass-wheel-wrap round-compass" id="round-compass-wrap">
+      <svg id="compass-svg" viewBox="0 0 260 260"></svg>
+      <button id="btn-made" class="compass-made-btn">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Made</span>
+      </button>
+    </div>
+
+    <div class="voice-hint" id="voice-hint">Say "made" or a miss direction</div>
+  </section>
+
+  <!-- ============ RESULT TOAST (overlay) ============ -->
+  <div id="result-toast" class="result-toast">
+    <div class="result-toast-inner">
+      <div class="result-icon" id="result-icon">✔</div>
+      <div class="result-sg" id="result-sg">+0.12</div>
+      <div class="result-sub" id="result-sub">strokes gained</div>
+    </div>
+  </div>
+
+  <!-- ============ SUMMARY SCREEN ============ -->
+  <section id="screen-summary" class="screen">
+    <div class="summary-hero">
+      <div class="summary-hero-label">Round complete</div>
+      <div class="summary-sg" id="summary-sg">+2.14</div>
+      <div class="summary-hero-sub">strokes gained</div>
+    </div>
+
+    <div class="xp-gain-card" id="xp-gain-card">
+      <span id="xp-gained">+0</span> XP earned
+    </div>
+
+    <div class="breakdown-grid" id="breakdown-grid"></div>
+
+    <div class="weak-callout" id="weak-callout" style="display:none"></div>
+
+    <div class="chart-card" id="miss-heatmap-card" style="display:none">
+      <div class="chart-title">Where your misses went</div>
+      <div class="compass-wheel-wrap small">
+        <svg id="summary-heatmap-svg" viewBox="0 0 260 260"></svg>
+        <div class="compass-center small">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="badges-row" id="badges-row"></div>
+
+    <div class="summary-actions">
+      <button id="btn-play-again" class="primary-btn">Play Again</button>
+      <button id="btn-back-home" class="ghost-btn full">Back to Home</button>
+    </div>
+  </section>
+
+  <!-- ============ HISTORY SCREEN ============ -->
+  <section id="screen-history" class="screen">
+    <header class="sub-header">
+      <button id="btn-history-back" class="icon-btn" aria-label="Back">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <h2>History</h2>
+    </header>
+
+    <div class="lifetime-stats" id="lifetime-stats"></div>
+
+    <div class="chart-card">
+      <div class="chart-title">Strokes gained trend</div>
+      <canvas id="trend-canvas" height="120"></canvas>
+    </div>
+
+    <div class="chart-card" id="history-weak-card" style="display:none">
+      <div class="chart-title">Weakest category (lifetime)</div>
+      <div id="history-weak-bars" class="weak-bars"></div>
+    </div>
+
+    <div class="chart-card" id="history-heatmap-card" style="display:none">
+      <div class="chart-title">Lifetime miss directions</div>
+      <div class="compass-wheel-wrap small">
+        <svg id="history-heatmap-svg" viewBox="0 0 260 260"></svg>
+        <div class="compass-center small">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="session-list" id="session-list"></div>
+  </section>
+
+  <!-- ============ SETTINGS SCREEN ============ -->
+  <section id="screen-settings" class="screen">
+    <header class="sub-header">
+      <button id="btn-settings-back" class="icon-btn" aria-label="Back">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <h2>Settings</h2>
+    </header>
+    <div class="settings-list">
+      <div class="settings-item">
+        <span>Units</span>
+        <div class="mix-row" id="units-row">
+          <button class="mix-btn active" data-units="ft">Feet</button>
+          <button class="mix-btn" data-units="m">Meters</button>
+        </div>
+      </div>
+      <button id="btn-reset-data" class="danger-btn">Reset all data</button>
+      <p class="settings-note">Greenkeeper stores everything on this device only. Nothing is uploaded anywhere.</p>
+    </div>
+  </section>
+
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

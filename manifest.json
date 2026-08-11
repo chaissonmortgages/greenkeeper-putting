@@ -1,0 +1,14 @@
+{
+  "name": "Greenkeeper — Putting Practice",
+  "short_name": "Greenkeeper",
+  "description": "Gamified putting practice with strokes gained scoring and voice input.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#081712",
+  "theme_color": "#0b1f16",
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
